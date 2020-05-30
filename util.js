@@ -99,9 +99,9 @@ module.exports = {
         }
       }
     }
-    if (nearestOutlet.leastDistance>1 && nearestOutlet.leastDistance<100){
-        return 'Not Found'
-    }
+//     if (nearestOutlet.leastDistance>1 && nearestOutlet.leastDistance<100){
+//         return 'Not Found'
+//     }
     return nearestOutlet;
   },
 };

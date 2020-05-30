@@ -1,6 +1,12 @@
 ### Backend App for getting corresponding outlet
+
 #
-Command to run the application: ```npm start```
+
+To start the app, clone the repo on your local machine and do the below steps:
+
+Installing the dependencies: ```npm install```
+
+Running the application: ```npm start```
 
 Expected output:
 ```

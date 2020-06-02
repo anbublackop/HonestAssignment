@@ -56,9 +56,13 @@ getLatLong = async (address) => {
       body
     ) {
       if (!error && response.statusCode == 200) {
-        resolve(
-          JSON.parse(body).Response.View[0].Result[0].Location.DisplayPosition
-        );
+        try {
+          resolve(
+            JSON.parse(body).Response.View[0].Result[0].Location.DisplayPosition
+          );
+        } catch (err) {
+          reject("Location Not Found");
+        }
       } else {
         reject("Location Not Found");
       }
@@ -91,29 +95,34 @@ polygonCheck = (
 module.exports = {
   async findCorrespondingOutlet(address) {
     let data = parsedResult();
-    const latLongOfAddress = await getLatLong(address);
-    const addressLat = latLongOfAddress.Latitude;
-    const addressLong = latLongOfAddress.Longitude;
+    let latLongOfAddress;
     let finalOutlet = "Not Found";
-    for (location of data) {
-      const longArray = location.coordinates.map((ele) =>
-        parseFloat(ele.split(",")[0])
-      );
-      const latArray = location.coordinates.map((ele) =>
-        parseFloat(ele.split(",")[1])
-      );
-      
-      let polyCheck = polygonCheck(
-        location.coordinates.length,
-        longArray,
-        latArray,
-        addressLong,
-        addressLat
-      );
+    try {
+      latLongOfAddress = await getLatLong(address);
+      const addressLat = latLongOfAddress.Latitude;
+      const addressLong = latLongOfAddress.Longitude;
+      for (location of data) {
+        const longArray = location.coordinates.map((ele) =>
+          parseFloat(ele.split(",")[0])
+        );
+        const latArray = location.coordinates.map((ele) =>
+          parseFloat(ele.split(",")[1])
+        );
 
-      if (polyCheck) {
-        finalOutlet = location.name;
+        let polyCheck = polygonCheck(
+          location.coordinates.length,
+          longArray,
+          latArray,
+          addressLong,
+          addressLat
+        );
+
+        if (polyCheck) {
+          finalOutlet = location.name;
+        }
       }
+    } catch (err) {
+      console.log("Error getting the details...");
     }
     return { name: finalOutlet };
   },

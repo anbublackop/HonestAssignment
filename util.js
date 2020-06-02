@@ -1,25 +1,21 @@
 const request = require("request");
-const API_KEY = "phBHGa8ywlGgB2G9E52IGjsHAwOLezz8";
-const API_URL = "http://open.mapquestapi.com/geocoding/v1/address";
+const fs = require("fs");
+const path = require("path");
+const xmlReader = require("read-xml");
+const convert = require("xml-js");
+const API_KEY = "8uUrCJBmMVXaQVi8riCeCX-QwcylA0TjgoBIEaaurJM";
+const API_URL = "https://geocoder.ls.hereapi.com/6.2/geocode.json";
 
 parserFunction = () => {
-  var fs = require("fs"),
-    path = require("path"),
-    xmlReader = require("read-xml");
-
-  var convert = require("xml-js");
-
-  var FILE = path.join(__dirname, "./FullStackTest_DeliveryAreas.kml");
+  const FILE = path.join(__dirname, "./FullStackTest_DeliveryAreas.kml");
   xmlReader.readXML(fs.readFileSync(FILE), function (err, data) {
     if (err) {
       console.error(err);
     }
-
-    var xml = data.content;
-    var result = JSON.parse(
+    const xml = data.content;
+    const result = JSON.parse(
       convert.xml2json(xml, { compact: true, spaces: 4 })
     );
-
     parsedData = result.kml.Document.Placemark;
   });
 
@@ -54,13 +50,15 @@ parsedResult = () => {
 
 getLatLong = async (address) => {
   return new Promise(function (resolve, reject) {
-    request(`${API_URL}?key=${API_KEY}&location=${address}`, function (
+    request(`${API_URL}?searchtext=${address}&apiKey=${API_KEY}`, function (
       error,
       response,
       body
     ) {
       if (!error && response.statusCode == 200) {
-        resolve(JSON.parse(body).results[0].locations[0].latLng);
+        resolve(
+          JSON.parse(body).Response.View[0].Result[0].Location.DisplayPosition
+        );
       } else {
         reject("Location Not Found");
       }
@@ -68,40 +66,55 @@ getLatLong = async (address) => {
   });
 };
 
+polygonCheck = (
+  totalCoordinates,
+  longArray,
+  latArray,
+  addressLat,
+  addressLong
+) => {
+  let i = (j = c = 0);
+  for (i = 0, j = totalCoordinates - 1; i < totalCoordinates; j = i++) {
+    if (
+      latArray[i] > addressLong != latArray[j] > addressLong &&
+      addressLat <
+        ((longArray[j] - longArray[i]) * (addressLong - latArray[i])) /
+          (latArray[j] - latArray[i]) +
+          longArray[i]
+    ) {
+      c = !c;
+    }
+  }
+  return c;
+};
+
 module.exports = {
   async findCorrespondingOutlet(address) {
     let data = parsedResult();
     const latLongOfAddress = await getLatLong(address);
-    const addressLat = latLongOfAddress.lat;
-    const addressLong = latLongOfAddress.lng;
-    let diffArray = [];
-    let nearestOutlet = {};
-    let leastDistance = 100000;
+    const addressLat = latLongOfAddress.Latitude;
+    const addressLong = latLongOfAddress.Longitude;
+    let finalOutlet = "Not Found";
     for (location of data) {
-      let minDiff = 1000;
-      for (let c of location.coordinates) {
-        let long = parseFloat(c.split(",")[0]);
-        let lat = parseFloat(c.split(",")[1]);
-        const diff = Math.abs(addressLat - lat) + Math.abs(addressLong - long);
-        if (diff < minDiff) {
-          minDiff = diff;
-        }
-      }
-      diffArray.push({
-        name: location.name,
-        diff: minDiff,
-      });
-      if (leastDistance > minDiff) {
-        leastDistance = minDiff
-        nearestOutlet = {
-            name: location.name,
-            leastDistance: minDiff
-        }
+      const longArray = location.coordinates.map((ele) =>
+        parseFloat(ele.split(",")[0])
+      );
+      const latArray = location.coordinates.map((ele) =>
+        parseFloat(ele.split(",")[1])
+      );
+      
+      let polyCheck = polygonCheck(
+        location.coordinates.length,
+        longArray,
+        latArray,
+        addressLong,
+        addressLat
+      );
+
+      if (polyCheck) {
+        finalOutlet = location.name;
       }
     }
-//     if (nearestOutlet.leastDistance>1 && nearestOutlet.leastDistance<100){
-//         return 'Not Found'
-//     }
-    return nearestOutlet;
+    return { name: finalOutlet };
   },
 };
